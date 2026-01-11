@@ -214,7 +214,7 @@ void displaymenu(void) {
     staticHeader();
     display.setCursor(25, 9);
     display.println("About Me");
-    display.println("John Antony Alapatt");
+    display.println("Literal Object Variable");
     display.print("JOS REWRITTEN ");
     display.println(JOS_VERSION);
     display.print("NAME:");
@@ -229,3 +229,4 @@ void displaymenu(void) {
   }
   display.display();
 }
+
