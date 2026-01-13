@@ -13,3 +13,16 @@ You will need:
 - EEPROM-FS DOES NOT WORK ON WOKWI.
 # Images
 <img width="1148" height="495" alt="image" src="https://github.com/user-attachments/assets/3b34a85a-992a-4d9a-a400-8e2d323d1ab2" />
+# JOS Changelog
+Version 1.0.6 RW1
+- Completely rewritten and neater code
+- New configuration file
+- Now supports DS1307 RTC
+- A file manager was added. The utility to add files to the file manager is still in development.
+- The pong game is less laggy!
+- There is less delay when opening applications.
+- Completely revamped the menu screen
+- The ability to change the device name.
+
+The clock application was added to replace the useless Math.Pi application.
+
