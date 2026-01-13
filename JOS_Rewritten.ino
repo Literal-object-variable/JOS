@@ -68,7 +68,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 uRTCLib rtc(RTC_ADDRESS);
 DHT_Unified dht(DHTPIN, DHTTYPE);
 void setup() {
-  
+  dht.begin();
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {for (;;);}
   if (DISAGREE && !AGREE){for (;;);}
   if (SWITCHOFF){for (;;);}
@@ -119,11 +119,11 @@ void displaymenu(void) {
 
   if (up == LOW && down == LOW) {};
   if (up == LOW && entered == -1) {
-    selected = selected + 1;
+    selected = selected - 1;
     delay(200);
   };
   if (down == LOW && entered == -1) {
-    selected = selected - 1;
+    selected = selected + 1;
     delay(200);
   };
   if (enter == LOW && entered == -1) {
@@ -229,4 +229,5 @@ void displaymenu(void) {
   }
   display.display();
 }
+
 
