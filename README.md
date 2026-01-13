@@ -23,6 +23,7 @@ Version 1.0.6 RW1 (Prerelease)
 - The ability to change the device name
 - The clock application was added to replace the useless Math.Pi application.
 - Lag fixes
+
 Version 1.0.6 RW2 (Prerelease)
 - Reversed button fixes
 - RTC bugs fixed
