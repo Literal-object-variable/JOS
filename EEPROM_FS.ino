@@ -10,11 +10,11 @@ void fs(){
 
   if (up == LOW && down == LOW) {}
   if (up == LOW && fsEnter == -1) {
-    fsSelect = fsSelect + 1;
+    fsSelect = fsSelect - 1;
     delay(200);
   };
   if (down == LOW && fsEnter == -1) {
-    fsSelect = fsSelect - 1;
+    fsSelect = fsSelect + 1;
     delay(200);
   };
   if (enter == LOW && fsEnter == -1) {
@@ -88,3 +88,4 @@ void fs(){
   display.print(EEPROM_FS_VERSION);
   display.setTextColor(WHITE);
 }
+
