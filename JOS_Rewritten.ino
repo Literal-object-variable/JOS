@@ -9,7 +9,7 @@
 #include <Adafruit_Sensor.h>
 #include <DHT_U.h>
 #include <uRTCLib.h>
-#include "JOS_bitmaps.h"
+#include "JOS_BITMAPS.h"
 #include "JOS_config.h"
 const unsigned long PADDLE_RATE = 64;
 const uint8_t PLAYER_X = 115;
@@ -19,6 +19,7 @@ bool game_over, win;
 bool isfs = false;
 bool dhtl = false;
 bool isCluck = false;
+bool isChap = false;
 uint8_t player_score, mcu_score;
 uint8_t ball_x = 53, ball_y = 26;
 uint8_t ball_dir_x = 1, ball_dir_y = 1;
@@ -30,6 +31,8 @@ int selected = 0;
 int entered = -1;
 int fsEnter = -1;
 int fsSelect = 0;
+int cEnter = -1;
+int cSelect = 0;
 int eeAddress = 0;
 short hours    = 0;
 short minutes  = 0;
@@ -53,28 +56,50 @@ struct EStructure {
   char nameD[16];
   char nameE[16];
   char nameF[16];
+  char chatMsgA1[32];
+  char chatMsgA2[32];
+  char chatMsgB1[32];
+  char chatMsgB2[32];
+  char chatMsgC1[32];
+  char chatMsgC2[32];
+  char chatMsgD1[32];
+  char chatMsgD2[32];
+  char chatMsgE1[32];
+  char chatMsgE2[32];
+  char chatMsgF1[32];
+  char chatMsgF2[32];
+  char chatNameA[16];
+  char chatNameB[16];
+  char chatNameC[16];
+  char chatNameD[16];
+  char chatNameE[16];
+  char chatNameF[16];
 };
 const char *options[6] = {
     " Clock               ",
     " Temp / Humidity     ",
     " SuperMario Song     ",
     " The Pong Game       ",
-    " EEPROM FS           ",
-    " About Me            ",
+    " File explorer       ",
+    " Chaplication BLE    "
 };
+const char *options2[6] = {
+    " Math.Pi             ",
+    " About this MCU      ",
+    "                     ",
+    "                     ",
+    "                     ",
+    "                     "
+};
+short page = 1;
 unsigned long len = LENGTH_OF_SPLASH*1000;
 void splash();
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 uRTCLib rtc(RTC_ADDRESS);
-DHT_Unified dht(DHTPIN, DHTTYPE);
+DHT dht(DHTPIN, DHTTYPE);
 void setup() {
   dht.begin();
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {for (;;);}
-  if (DISAGREE && !AGREE){for (;;);}
-  if (SWITCHOFF){for (;;);}
-  if (SHOWERROR){while(true){display.clearDisplay(); display.setCursor(10,10); display.print("Error 1: Cannot start JOS, system files missing."); display.display(); delay(2000);}}
-  if (FAKEUPDATE){while(true){display.clearDisplay(); display.setCursor(10,10); display.print("Updating JOS... This will take forever."); display.display(); delay(2000);}}
-  if (SPLASHSTUCK){len = 4294967295UL;}
   display.clearDisplay();
   if(SPLASHSCREEN){splash();}
   pinMode(UP_BUTTON, INPUT_PULLUP);
@@ -138,17 +163,31 @@ void displaymenu(void) {
     display.setCursor(52, 9);
     display.println("Menu");
     if(!GAME){options[3] = " File not found.     ";}
-    if(MATHPI){options[0] = " Math.Pi             ";}
-    for (int i = 0; i < 6; i++) {
-      if (i == selected) {
-        display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-        display.println(options[i]);
-      } else if (i != selected) {
-        display.setTextColor(SSD1306_WHITE);
-        display.println(options[i]);
+    if(page == 1){
+      for (int i = 0; i < 6; i++) {
+        if (i == selected) {
+          display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+          display.println(options[i]);
+        } else if (i != selected) {
+          display.setTextColor(SSD1306_WHITE);
+          display.println(options[i]);
+        }
       }
+      display.display();
     }
-  } else if (entered == 0 && !MATHPI) {
+    if(page == 2){
+      for (int i = 0; i < 6; i++) {
+        if (i == selected) {
+          display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+          display.println(options2[i]);
+        } else if (i != selected) {
+          display.setTextColor(SSD1306_WHITE);
+          display.println(options2[i]);
+        }
+      }
+      display.display();
+    }
+  } else if (page == 1 && entered == 0) {
     isCluck = true;
     while (isCluck){
       cluck(); // Chickens can tell the time, so the clock application is called cluck.
@@ -157,21 +196,7 @@ void displaymenu(void) {
         return;
       } 
     }
-  } else if (entered == 0 && MATHPI) {
-    display.clearDisplay();
-    display.fillRect(0, 0, 128, 8, 1);
-    display.setTextColor(BLACK, WHITE);
-    display.setTextSize(1);
-    display.setFont(NULL);
-    display.setCursor(1, 0);
-    display.println("COMPATIBLITY MODE.");
-    display.setTextColor(WHITE);
-    display.setCursor(20, 9);
-    display.println("Legacy Math.Pi");
-    display.setTextWrap(1);
-    display.println("3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986");
-    display.display();
-  } else if (entered == 1) {
+  } else if (page == 1 && entered == 1) {
     staticHeader();
     dhtl = true;
     while (dhtl) {
@@ -182,12 +207,13 @@ void displaymenu(void) {
       }
     }
   }
-  else if (entered == 2) {
+  else if (page == 1 && entered == 2) {
     display.clearDisplay();
     display.drawBitmap(0, 0, New_Project, 128, 64, 1);
     display.display();
     musicdisc();
-  } else if (entered == 3 && GAME) {
+    
+  } else if (page == 1 && entered == 3 && GAME) {
     mcu_y = 16;
     player_y = 16;
     player_score = 0;
@@ -204,30 +230,58 @@ void displaymenu(void) {
     ball_update = millis();
     paddle_update = ball_update;
     gameloop();
-  } else if (entered == 4) {
+    
+  } else if (page == 1 && entered == 4) {
     isfs = true;
     fsEnter = -1;
     fsSelect = 0;
     delay(200);
     fs();
-  } else if (entered == 5) {
+    
+  } else if (page == 1 && entered == 5) {
+    isChap = true;
+    cEnter = -1;
+    cSelect = 0;
+    delay(200);
+    Chaplication();
+  } else if (page == 2 && entered == 0) {
+    display.clearDisplay();
+    display.fillRect(0, 0, 128, 8, 1);
+    display.setTextColor(BLACK, WHITE);
+    display.setTextSize(1);
+    display.setFont(NULL);
+    display.setCursor(1, 0);
+    display.println("COMPATIBLITY MODE.");
+    display.setTextColor(WHITE);
+    display.setCursor(20, 9);
+    display.println("Legacy Math.Pi");
+    display.setTextWrap(1);
+    display.println("3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986");
+    display.display();
+  } else if (page == 2 && entered == 1) {
     staticHeader();
-    display.setCursor(25, 9);
-    display.println("About Me");
-    display.println("Literal Object Variable");
+    display.setCursor(22, 9);
+    display.println("About this MCU");
+    display.println("Literal-object-variable");
     display.print("JOS REWRITTEN ");
     display.println(JOS_VERSION);
     display.print("NAME:");
     display.println(DEVICE_NAME);
-    display.print("CEPROM ");
+    display.print("EEPROM FS ");
     display.println(EEPROM_FS_VERSION);
   }
-  if (selected > 5) {
-    selected = 5;
-  } if (selected < 0) {
+  if (page == 1 && selected > 5) {
+    page = 2;
+    entered = -1;
     selected = 0;
+  } if (page == 1 && selected < 0) {
+    selected = 0;
+  } if (page == 2 && selected < 0) {
+    page = 1;
+    selected = 5;
+  } if (page == 2 && selected > 1) {
+    page = 2;
+    selected = 1;
   }
   display.display();
 }
-
-

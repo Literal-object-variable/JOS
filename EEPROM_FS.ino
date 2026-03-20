@@ -88,4 +88,3 @@ void fs(){
   display.print(EEPROM_FS_VERSION);
   display.setTextColor(WHITE);
 }
-
