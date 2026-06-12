@@ -1,8 +1,6 @@
 /* EEPROM FS / FILE MANAGER // DO NOT EDIT ANY LINE APART FROM LINE 44 */
 void fs(){
   while(isfs){
-  EStructure mainDirectory;
-  EEPROM.get(eeAddress, mainDirectory);
   int down = digitalRead(DOWN_BUTTON);
   int up = digitalRead(UP_BUTTON);
   int enter = digitalRead(SELECT_BUTTON);
@@ -88,4 +86,3 @@ void fs(){
   display.print(EEPROM_FS_VERSION);
   display.setTextColor(WHITE);
 }
-

@@ -1,0 +1,326 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <DHT.h>
+#include <uEEPROMLib.h>
+uEEPROMLib eeprom(0x50);
+#include <Keypad.h>
+#include <string.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Fonts/FreeMono9pt7b.h>
+#include <Adafruit_Sensor.h>
+#include <uRTCLib.h>
+#include "JOS_BITMAPS.h"
+#include "JOS_config.h"
+const byte ROWS = 4;
+const byte COLS = 4;
+char keys[ROWS][COLS] = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+byte rowPins[ROWS] = {22, 24, 26, 28};
+byte colPins[COLS] = {30, 32, 34, 36};
+const char letters[10][8] = {
+  "_0",
+  ".,!?1",
+  "ABC2",
+  "DEF3",
+  "GHI4",
+  "JKL5",
+  "MNO6",
+  "PQRS7",
+  "TUV8",
+  "WXYZ9"
+};
+String message = "";
+String finalmsg = "";
+bool areUDoneYet = false;
+int charIndex = 0;
+int lastKey = -1;
+unsigned long lastKeyTime = 0;
+const unsigned long DEBOUNCE = 200;
+const unsigned long TIMEOUT = 1000;
+
+const unsigned long PADDLE_RATE = 64;
+const uint8_t PLAYER_X = 115;
+const uint8_t MCU_X = 12;
+uint32_t delayMS = 1000;
+bool game_over, win;
+bool isfs = false;
+bool dhtl = false;
+bool isCluck = false;
+bool isChap = false;
+uint8_t player_score, mcu_score;
+uint8_t ball_x = 53, ball_y = 26;
+uint8_t ball_dir_x = 1, ball_dir_y = 1;
+unsigned long ball_update;
+unsigned long paddle_update;
+uint8_t mcu_y = 16;
+uint8_t player_y = 16;
+int selected = 0;
+int entered = -1;
+int fsEnter = -1;
+int fsSelect = 0;
+int cEnter = -1;
+int cSelect = 0;
+int eeAddress = 0;
+short hours    = 0;
+short minutes  = 0;
+short seconds  = 0;
+char tempA[3];
+char tempB[3];
+char tempC[3];
+char ctempA[32];
+//char ctempB[32];
+short date     = 0;
+short month    = 0;
+int year       = 0;
+struct EStructure {
+  char fileA[128];
+  char fileB[128];
+  char fileC[128];
+  char fileD[128];
+  char fileE[128];
+  char fileF[128];
+  char nameA[16];
+  char nameB[16];
+  char nameC[16];
+  char nameD[16];
+  char nameE[16];
+  char nameF[16];
+  char chatMsgA1[32];
+  char chatMsgA2[32];
+  char chatMsgB1[32];
+  char chatMsgB2[32];
+  char chatMsgC1[32];
+  char chatMsgC2[32];
+  char chatMsgD1[32];
+  char chatMsgD2[32];
+  char chatMsgE1[32];
+  char chatMsgE2[32];
+  char chatMsgF1[32];
+  char chatMsgF2[32];
+  char chatNameA[16];
+  char chatNameB[16];
+  char chatNameC[16];
+  char chatNameD[16];
+  char chatNameE[16];
+  char chatNameF[16];
+};
+EStructure mainDirectory;
+const char *options[6] = {
+    " Clock               ",
+    " Temp / Humidity     ",
+    " SuperMario Song     ",
+    " The Pong Game       ",
+    " File explorer       ",
+    " Chaplication BLE    "
+};
+const char *options2[6] = {
+    " Math.Pi             ",
+    " About this MCU      ",
+    "                     ",
+    "                     ",
+    "                     ",
+    "                     "
+};
+short page = 1;
+unsigned long len = LENGTH_OF_SPLASH*1000;
+void splash();
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+uRTCLib rtc(RTC_ADDRESS);
+DHT dht(DHTPIN, DHTTYPE);
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+void setup() {
+  Serial1.begin(9600);
+  dht.begin();
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {for (;;);}
+  display.clearDisplay();
+  if(SPLASHSCREEN){splash();}
+  pinMode(UP_BUTTON, INPUT_PULLUP);
+  pinMode(DOWN_BUTTON, INPUT_PULLUP);
+  pinMode(SELECT_BUTTON, INPUT_PULLUP);
+  pinMode(BACK_BUTTON, INPUT_PULLUP);
+  pinMode(BUZZER, OUTPUT);
+  
+}
+void loop() {displaymenu();}
+void splash(){
+  display.clearDisplay();
+  display.drawBitmap(0, 0, TitlePage, 128, 64, 1);
+  display.display();
+  display.setFont(NULL);
+  delay(len/4);
+  eeprom.eeprom_read(eeAddress, (byte*)&mainDirectory, sizeof(EStructure));
+  delay(len/4);
+  display.clearDisplay();
+  display.display();
+}
+void staticHeader(){
+    display.clearDisplay();
+    display.fillRect(0, 0, 128, 8, 1);
+    display.setTextColor(BLACK, WHITE);
+    display.setTextSize(1);
+    display.setFont(NULL);
+    display.setCursor(1, 0);
+    display.print(DEVICE_NAME);
+    display.setCursor(98, 0);
+    updateRTC();
+    sprintf(tempA, "%02d", hours);
+    sprintf(tempB, "%02d", minutes);
+    display.print(tempA);
+    display.print(":");
+    display.print(tempB);
+    display.setTextColor(WHITE);
+}
+void displaymenu(void) {
+  int down = digitalRead(DOWN_BUTTON);
+  int up = digitalRead(UP_BUTTON);
+  int enter = digitalRead(SELECT_BUTTON);
+  int back = digitalRead(BACK_BUTTON);
+
+  if (up == LOW && down == LOW) {};
+  if (up == LOW && entered == -1) {
+    selected = selected - 1;
+    delay(200);
+  };
+  if (down == LOW && entered == -1) {
+    selected = selected + 1;
+    delay(200);
+  };
+  if (enter == LOW && entered == -1) {
+    entered = selected;
+  };
+  if (back == LOW && entered != -1) {
+    entered = -1;
+    dhtl = false;
+  };
+  if (entered == -1) {
+    staticHeader();
+    display.setCursor(52, 9);
+    display.println("Menu");
+    if(!GAME){options[3] = " File not found.     ";}
+    if(page == 1){
+      for (int i = 0; i < 6; i++) {
+        if (i == selected) {
+          display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+          display.println(options[i]);
+        } else if (i != selected) {
+          display.setTextColor(SSD1306_WHITE);
+          display.println(options[i]);
+        }
+      }
+      display.display();
+    }
+    if(page == 2){
+      for (int i = 0; i < 6; i++) {
+        if (i == selected) {
+          display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+          display.println(options2[i]);
+        } else if (i != selected) {
+          display.setTextColor(SSD1306_WHITE);
+          display.println(options2[i]);
+        }
+      }
+      display.display();
+    }
+  } else if (page == 1 && entered == 0) {
+    isCluck = true;
+    while (isCluck){
+      cluck(); // Chickens can tell the time, so the clock application is called cluck.
+      if (digitalRead(BACK_BUTTON) == LOW) {
+        isCluck = false;
+        return;
+      } 
+    }
+  } else if (page == 1 && entered == 1) {
+    staticHeader();
+    dhtl = true;
+    while (dhtl) {
+      dl();
+      if (digitalRead(BACK_BUTTON) == LOW) {
+        dhtl = false;
+        return;
+      }
+    }
+  }
+  else if (page == 1 && entered == 2) {
+    display.clearDisplay();
+    display.drawBitmap(0, 0, New_Project, 128, 64, 1);
+    display.display();
+    musicdisc();
+    
+  } else if (page == 1 && entered == 3 && GAME) {
+    mcu_y = 16;
+    player_y = 16;
+    player_score = 0;
+    mcu_score = 0;
+    ball_x = 53;
+    ball_y = 26;
+    ball_dir_x = 1;
+    ball_dir_y = 1;
+    //The Setup:
+    unsigned long start = millis();
+    display.clearDisplay();
+    drawCourt();
+    display.display();
+    ball_update = millis();
+    paddle_update = ball_update;
+    gameloop();
+    
+  } else if (page == 1 && entered == 4) {
+    isfs = true;
+    fsEnter = -1;
+    fsSelect = 0;
+    delay(200);
+    fs();
+    
+  } else if (page == 1 && entered == 5) {
+    isChap = true;
+    cEnter = -1;
+    cSelect = 0;
+    delay(200);
+    Chaplication();
+  } else if (page == 2 && entered == 0) {
+    display.clearDisplay();
+    display.fillRect(0, 0, 128, 8, 1);
+    display.setTextColor(BLACK, WHITE);
+    display.setTextSize(1);
+    display.setFont(NULL);
+    display.setCursor(1, 0);
+    display.println("COMPATIBLITY MODE.");
+    display.setTextColor(WHITE);
+    display.setCursor(20, 9);
+    display.println("Legacy Math.Pi");
+    display.setTextWrap(1);
+    display.println("3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986");
+    display.display();
+  } else if (page == 2 && entered == 1) {
+    staticHeader();
+    display.setCursor(22, 9);
+    display.println("About this MCU");
+    display.println("Literal-object-variable");
+    display.print("JOS REWRITTEN ");
+    display.println(JOS_VERSION);
+    display.print("NAME:");
+    display.println(DEVICE_NAME);
+    display.print("EEPROM FS ");
+    display.println(EEPROM_FS_VERSION);
+  }
+  if (page == 1 && selected > 5) {
+    page = 2;
+    entered = -1;
+    selected = 0;
+  } if (page == 1 && selected < 0) {
+    selected = 0;
+  } if (page == 2 && selected < 0) {
+    page = 1;
+    selected = 5;
+  } if (page == 2 && selected > 1) {
+    page = 2;
+    selected = 1;
+  }
+  display.display();
+}

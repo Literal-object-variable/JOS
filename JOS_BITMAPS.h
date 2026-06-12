@@ -224,7 +224,6 @@ const unsigned char  New_Project [] PROGMEM = {
 #define NOTE_D8  4699
 #define NOTE_DS8 4978
 #define OLED_RESET -1
-#define JOS_VERSION "1.0.6"
-#define EEPROM_FS_VERSION "0.0.4"
+#define JOS_VERSION "1.0.7"
+#define EEPROM_FS_VERSION "0.0.5"
 #endif
-
